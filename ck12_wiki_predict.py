@@ -1,4 +1,7 @@
 import argparse
+
+import operator
+
 import utils
 import numpy as np
 import pandas as pd
@@ -22,7 +25,7 @@ def get_wiki_docs():
     utils.get_save_wiki_docs(ck12_keywords, wiki_docs_dir)
 
 
-def predict(data, docs_per_q):  
+def predict_weights(data, docs_per_q):
     #index docs
     docs_tf, words_idf = utils.get_docstf_idf(wiki_docs_dir)
     
@@ -56,7 +59,7 @@ def predict(data, docs_per_q):
                 if w in docs_tf[d]:
                     sc_D += 1. * docs_tf[d][w] * words_idf[w]
 
-        res.append(['A','B','C','D'][np.argmax([sc_A, sc_B, sc_C, sc_D])])
+        res.append([sc_A, sc_B, sc_C, sc_D])
         
     return res
 
@@ -66,24 +69,21 @@ if __name__ == '__main__':
     parser.add_argument('--fname', type=str, default='validation_set.tsv', help='file name with data')
     parser.add_argument('--docs_per_q', type=int, default= 10, help='number of docs to consider when ranking quesitons')
     parser.add_argument('--get_data', type=int, default= 0, help='flag to get wiki data for IR')
+    parser.add_argument('--result_file', type=str, default='wiki_result.csv')
     args = parser.parse_args()
     
     if args.get_data:
         get_wiki_docs()
     
     #read data
-    data = pd.read_csv('data/' + args.fname, sep = '\t' )
+    data = pd.read_csv('data/' + args.fname, sep='\t')
     #predict
-    res = predict(data, args.docs_per_q)
+    res = predict_weights(data, args.docs_per_q)
     #save result
-    pd.DataFrame({'id': list(data['id']), 'correctAnswer': res})[['id', 'correctAnswer']].to_csv("prediction.csv", index = False)
-    
-
-
-    
-        
-        
-         
-    
-    
-    
+    pd.DataFrame({
+        'id': list(data['id']),
+        'weightA': map(operator.itemgetter(0), res),
+        'weightB': map(operator.itemgetter(1), res),
+        'weightC': map(operator.itemgetter(2), res),
+        'weightD': map(operator.itemgetter(3), res)
+    })[['id', 'weightA', 'weightB', 'weightC', 'weightD']].to_csv(args.result_file, index=False)

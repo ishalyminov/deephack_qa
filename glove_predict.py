@@ -1,4 +1,5 @@
 import numpy as np
+import operator
 import pandas as pd
 from scipy import linalg
 from nltk.corpus import stopwords
@@ -6,11 +7,11 @@ import argparse
 from utils import tokenize
 
 
-def predict_answers(data, word2vec, N):
+def predict_weights(data, word2vec, N):
 
     stop = stopwords.words('english')
 
-    pred_answs = []
+    pred_weights = []
     for i in range(data.shape[0]):
         #calculate word2vec for question
         q_vec = np.zeros(N)
@@ -46,16 +47,17 @@ def predict_answers(data, word2vec, N):
         D_vec = D_vec / linalg.norm(D_vec)
         
         #choose question based on cosine distance
-        idx = np.concatenate((A_vec, B_vec, C_vec, D_vec)).reshape(4, N).dot(q_vec).argmax()
-        pred_answs.append(["A", "B", "C", "D"][idx])
+        weights = np.concatenate((A_vec, B_vec, C_vec, D_vec)).reshape(4, N).dot(q_vec)
+        pred_weights.append(weights)
         
-    return pred_answs
+    return pred_weights
 
 if __name__ == '__main__':
     #parsing input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--fname', type=str, default='validation_set.tsv', help='file name with data')
     parser.add_argument('--N', type=int, default= 300, help='embeding size (50, 100, 200, 300 only)')
+    parser.add_argument('--result_file', type=str, default='glove_result.csv')
     args = parser.parse_args()
     
     #read data
@@ -64,12 +66,18 @@ if __name__ == '__main__':
     #read glove
     word2vec = {}
     with open("data/glove/glove.6B." + str(args.N) + "d.txt") as f:
-        for line in f:    
+        for line in f:
             l = line.split()
             word2vec[l[0]] = map(float, l[1:])
     
     #predict
-    pred_answs = predict_answers(data, word2vec, args.N)
+    pred_answs = predict_weights(data, word2vec, args.N)
     
     #save prediction
-    pd.DataFrame({'id': list(data['id']),'correctAnswer': pred_answs})[['id', 'correctAnswer']].to_csv('prediction.csv', index = False)
+    pd.DataFrame({
+        'id': list(data['id']),
+        'weightA': map(operator.itemgetter(0), pred_answs),
+        'weightB': map(operator.itemgetter(1), pred_answs),
+        'weightC': map(operator.itemgetter(2), pred_answs),
+        'weightD': map(operator.itemgetter(3), pred_answs)
+    })[['id', 'weightA', 'weightB', 'weightC', 'weightD']].to_csv(args.result_file, index=False)
