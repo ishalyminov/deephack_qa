@@ -40,7 +40,15 @@ def predict_weights(data, word2vec, N):
         for w in tokenize(data['answerD'][i]):
             if w.lower() in word2vec and w.lower() not in stop:
                 D_vec += word2vec[w.lower()]
-    
+
+        if linalg.norm(A_vec) < 1e-6:
+            A_vec = np.ones(N)
+        if linalg.norm(B_vec) < 1e-6:
+            B_vec = np.ones(N)
+        if linalg.norm(C_vec) < 1e-6:
+            C_vec = np.ones(N)
+        if linalg.norm(D_vec) < 1e-6:
+            D_vec = np.ones(N)
         A_vec = A_vec / linalg.norm(A_vec) 
         B_vec = B_vec / linalg.norm(B_vec)
         C_vec = C_vec / linalg.norm(C_vec)
